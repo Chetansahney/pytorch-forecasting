@@ -221,7 +221,7 @@ class _TslibDataset(Dataset):
         if processed_data["static"] is not None:
             static_features = processed_data["static"]
             if not isinstance(static_features, torch.Tensor):
-                static_features = torch.tensor(static_features)
+                static_features = torch.tensor(static_features, dtype=torch.float32)
             static_features = static_features.flatten()
 
             static_feature_names = metadata["feature_names"]["static"]

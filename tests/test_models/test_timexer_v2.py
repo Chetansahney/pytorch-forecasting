@@ -398,6 +398,8 @@ def test_integration_with_datamodule(model, basic_tslib_data_module):
 
 def test_static_features_are_split_by_type_in_tslib_output():
     """Ensure static categorical and continuous tensors are separated in v2 output."""
+    np.random.seed(42)
+
     df = pd.DataFrame(
         {
             "time_idx": np.tile(np.arange(30), 2),
