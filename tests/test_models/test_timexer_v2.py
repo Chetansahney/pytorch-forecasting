@@ -444,6 +444,7 @@ def test_static_features_are_split_by_type_in_tslib_output():
 
 def test_tslib_datamodule_propagates_actual_time_indices():
     """Ensure v2 output keeps original time indices, including irregular timelines."""
+    np.random.seed(42)
     time_points = np.array([10, 11, 15, 20, 35, 36, 50, 80], dtype=np.int64)
     df = pd.DataFrame(
         {
