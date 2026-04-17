@@ -440,3 +440,52 @@ def test_static_features_are_split_by_type_in_tslib_output():
     x, _ = next(iter(dm.train_dataloader()))
     assert x["static_categorical_features"].shape[-1] == 1
     assert x["static_continuous_features"].shape[-1] == 1
+
+
+def test_tslib_datamodule_propagates_actual_time_indices():
+    """Ensure v2 output keeps original time indices, including irregular timelines."""
+    time_points = np.array([10, 11, 15, 20, 35, 36, 50, 80], dtype=np.int64)
+    df = pd.DataFrame(
+        {
+            "time_idx": np.tile(time_points, 2),
+            "group_id": np.repeat(["group_0", "group_1"], len(time_points)),
+            "value": np.random.randn(2 * len(time_points)).astype(np.float32),
+            "known_feat": np.random.randn(2 * len(time_points)).astype(np.float32),
+        }
+    )
+    df["group_id"] = df["group_id"].astype("category")
+
+    ts = TimeSeries(
+        data=df,
+        time="time_idx",
+        target="value",
+        group=["group_id"],
+        num=["value", "known_feat"],
+        known=["known_feat", "time_idx"],
+    )
+
+    dm = TslibDataModule(
+        time_series_dataset=ts,
+        batch_size=2,
+        context_length=4,
+        prediction_length=2,
+    )
+    dm.setup(stage="fit")
+
+    assert len(dm._train_windows) > 0
+    series_idx, start_idx, context_length, prediction_length = dm._train_windows[0]
+    x, _ = dm.train_dataset[0]
+    original_time = dm.time_series_dataset[series_idx]["t"]
+
+    expected_history = torch.as_tensor(
+        original_time[start_idx : start_idx + context_length]
+    )
+    expected_future = torch.as_tensor(
+        original_time[
+            start_idx + context_length : start_idx + context_length + prediction_length
+        ]
+    )
+
+    assert torch.equal(x["history_time_idx"], expected_history)
+    assert torch.equal(x["future_time_idx"], expected_future)
+    assert not torch.equal(x["history_time_idx"], torch.arange(context_length))
